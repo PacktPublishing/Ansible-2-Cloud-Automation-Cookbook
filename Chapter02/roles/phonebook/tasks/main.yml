@@ -1,0 +1,42 @@
+---
+- name: install epel repository
+  package:
+    name: epel-release
+    state: present
+
+- name: install dependencies 
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - git
+  - python-pip
+  - gcc
+  - python-devel
+
+- name: install python libraries
+  pip:
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - flask
+  - flask-sqlalchemy
+  - flask-migrate
+  - uwsgi
+
+- name: get the application code
+  git:
+    repo: https://github.com/adimania/phone-book
+    dest: /opt/phone-book
+
+- name: upload systemd unit file
+  copy:
+    src: phone-book.service
+    dest: /etc/systemd/system/phone-book.service
+
+- name: start phonebook
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: phone-book
+    enabled: yes

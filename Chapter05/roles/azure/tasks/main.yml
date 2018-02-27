@@ -1,0 +1,179 @@
+---
+- name: Create Virtual Network
+  azure_rm_virtualnetwork:
+     name: vnet01
+     resource_group: example
+     address_prefixes_cidr:
+        - "10.2.0.0/16"
+        - "172.1.0.0/16"
+     tags:
+        env: testing
+    state: present
+  tags:
+    - recipe2
+
+- name: Create subnet
+  azure_rm_subnet:
+     name: subnet01
+     virtual_network_name: my_first_subnet
+     resource_group: example
+     address_prefix_cidr: "10.2.0.0/24"
+     state: present
+  tags:
+    - recipe2
+
+- name: Create network interface card
+  azure_rm_networkinterface:
+      name: nic01
+      resource_group: example
+      virtual_network_name: vnet01
+      subnet_name: subnet01
+      public_ip: no
+      state: present
+  register: network_interface
+  tags:
+    - recipe2
+
+- name: Show private ip
+  debug:
+     msg: "{{network_interface.ip_configuration.private_ip_address}}"
+  tags:
+    - recipe2
+
+- name: Create Public IP address
+  azure_rm_publicipaddress:
+     resource_group: example
+     name: pip01
+     allocation_method: Static
+     domain_name: test
+     state: present
+  register: publicip
+  tag:
+    - recipe3
+
+- name: Show Public IP address
+  debug:
+     msg: "{{ publicip.ip_address }}"
+  tag:
+    - recipe3
+
+- name: Create network interface card using existing public ip address
+  azure_rm_networkinterface:
+     name: nic02
+     resource_group: example
+     virtual_network_name: vnet01
+     subnet_name: subnet01
+     public_ip_address_name: pip01
+     state: present
+  register: network_interface02
+  tags:
+    - recipe4
+
+- name: Create VM using existing virtual machine
+  azure_rm_virtualmachine:
+    resource_group: example
+    name: first_vm
+    location: “{{azure_region}}”
+    vm_size: Standard_D4
+    storage_account: examplestorage01
+    admin_username: cookbook
+    ssh_public_keys:
+      - path: /home/admin/.ssh/authorized_keys
+        key_data: “ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDq8ddP3LGDr586Njl9lqScZvakv4DvGPsK9PNCw+MWaLZsSovUECLm1v3IxfBhbGUrbQMFAbff0Piie9+6aas5vSFaqn1LMhEyVNjJkaFaztg/FiYbhcSzb4zc7hrKyZriUyou2gj68o9113g38wh0tK6TSjfQ+DrN2HiV8bo4jLYmGnh+A3O6HMWR1ceCclN5c3g4RRjrLzSC9YolufMDLzs4CWxjEDLufYwsPqafOrvcXUlLeAzfjYrG8Re82sH6uE8Zw1WHRDk9hhRZU8s5jFCtepLeHL0jgftMXHGEP7F/cFXZb9KzdO1sqIie7OMfQ44hAPAcA1KexEPt6gb1”
+    image:
+      offer: UbuntuServer
+      publisher: Ubuntu
+      sku: '16.04-LTS'
+      version: latest
+    network_interfaces: nic02
+  tags:
+    - recipe4
+
+- name: Create network security group
+  azure_rm_securitygroup:
+     resource_group: example
+     name: mysg01
+     purge_rules: yes
+     rules:
+         - name: 'AllowSSH'
+           protocol: TCP
+           source_address_prefix: *
+           destination_port_range: 22
+           access: Allow
+           priority: 100
+           direction: Inbound
+         - name: 'AllowHTTP'
+           protocol: TCP
+           source_address_prefix: *
+           destination_port_range: 80
+           priority: 101
+           direction: Inbound
+         - name: 'AllowHTTPS'
+           protocol: TCP
+           source_address_prefix: *
+           destination_port_range: 443
+           priority: 102
+           direction: Inbound
+        -  name: 'DenyAll'
+           protocol: TCP
+           source_address_prefix: *
+           destination_port_range: *
+           priority: 103
+           direction: Inbound
+  tags:
+    - recipe5
+
+- name: Create subnet
+  azure_rm_subnet:
+     name: subnet01
+     virtual_network_name: my_first_subnet
+     resource_group: example
+     address_prefix_cidr: "10.2.0.0/24"
+     state: present
+     security_group_name: mysg01
+  tags:
+    - recipe5
+
+- name: Create network interface card using existing public ip address and security group
+  azure_rm_networkinterface:
+      name: nic02
+      resource_group: example
+      virtual_network_name: vnet01
+      subnet_name: subnet01
+      public_ip_address_name: pip01
+      security_group_name: mysg01
+      state: present
+  register: network_interface02
+  tags:
+    - recipe5
+
+- name: Create storage container
+  azure_rm_storageblob:
+     resource_group: example
+     storage_account_name: examplestroage01
+     container: cookbook
+     state: present
+  tags:
+    - recipe6
+
+- name: Upload a file to existing container
+  azure_rm_storageblob:
+     resource_group: example
+     storage_account_name: examplestorage01
+     container: cookbook
+     blob: myfile.png
+     src: /tmp/myfile.png
+     public_access: blob
+     content_type: 'application/image'
+  tags:
+    - recipe6
+
+- name: Download blob object
+  azure_rm_storageblob:
+     resource_group: example
+     storage_account_name: examplestorage01
+     container: cookbook
+     blob: myfile.png
+     dest: /tmp/download_file.png
+  tags:
+    - recipe6

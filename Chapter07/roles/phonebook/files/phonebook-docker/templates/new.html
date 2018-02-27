@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h3 class="text-muted">New Contact</h3>
+      </div>
+      <hr/>
+      {%- for category, message in get_flashed_messages(with_categories=true) %}
+      <div class="alert alert-danger">
+        {{ message }}
+      </div>
+      {%- endfor %}
+
+      <form class="form-horizontal" action="{{ request.path }}" method="post">
+        <div class="form-group">
+          <label for="name" class="col-lg-2 control-label">Name</label>
+          <div class="col-lg-2">
+            <input type="text" class="form-control" name="name" placeholder="Name">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="email" class="col-lg-2 control-label">Email</label>
+          <div class="col-lg-2">
+            <input type="text" class="form-control" name="email" placeholder="Email">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="contact" class="col-lg-2 control-label">Phone</label>
+          <div class="col-lg-2">
+            <input type="text" class="form-control" name="phone" placeholder="Phone">
+          </div>
+        </div>
+        </div>
+        <div class="form-group">
+          <div class="col-lg-offset-2 col-lg-2">
+            <input type="submit" class="btn btn-primary" value="Submit">
+          </div>
+        </div>
+      </form>
+    </div>
+  </body>
+</html>
+

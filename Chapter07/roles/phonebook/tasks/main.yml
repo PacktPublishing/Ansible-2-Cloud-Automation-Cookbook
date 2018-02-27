@@ -1,0 +1,7 @@
+---
+- name: Compose and start phonebook application
+  docker_service:
+     project_src: "{{role_path}}/files/phonebook-docker"
+     state: present
+  tags:
+    - phonebookapp

@@ -1,0 +1,4 @@
+---
+- hosts: tag_app
+  roles:
+    - phonebook

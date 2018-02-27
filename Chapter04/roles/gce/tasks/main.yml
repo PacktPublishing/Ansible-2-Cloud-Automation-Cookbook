@@ -1,0 +1,278 @@
+---
+- name: include secrets
+  include_vars: secrets.yml
+
+- name: Create Custom Network
+  gce_net:
+    name: my-network
+    mode: custom
+    subnet_name: "public-subnet"
+    subnet_region: us-west1
+    ipv4_range: '10.0.0.0/24'
+    state: "present"
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+    credentials_file: "{{ credentials_file }}"    
+  tags:
+  - recipe2
+
+- name: create public ip
+  gce_eip:
+    name: app
+    region: us-west1
+    state: present    
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+    credentials_file: "{{ credentials_file }}"
+  register: app_eip
+  tags:
+  - recipe2
+
+- name: create and start the instance
+  gce:
+    instance_names: app
+    zone: "{{ zone }}"
+    machine_type: f1-micro
+    image: centos-7
+    state: present
+    disk_size: 15 
+    tags: http
+    metadata: "{{ instance_metadata }}"
+    network: my-network
+    subnetwork: public-subnet
+    external_ip: "{{ app_eip.address }}"
+    service_account_email: "{{ service_account_email }}"
+    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"    
+  tags:
+  - recipe2
+
+- name: attach persistent disk
+  gce_pd:
+    disk_type: pd-standard
+    size_gb: 10
+    instance_name: app
+    zone: "{{ zone }}"
+    service_account_email: "{{ service_account_email }}"
+    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"
+    name: app-pd
+  tags:
+  - recipe3
+
+- name: create snapshot of instance
+  gce_snapshot:
+    instance_name: app
+    snapshot_name: app-snapshot
+    state: present
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+    credentials_file: "{{ credentials_file }}"
+  tags:
+  - recipe4
+
+- name: tag the instance
+  gce_tag:
+    instance_name: app
+    tags: http,app
+    zone: "{{ zone }}"
+    state: present
+    pem_file: "{{ credentials_file }}"
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+  tags:
+  - recipe5
+    
+- name: Create Firewall Rule with Source Tags
+  gce_net:
+    name: my-network
+    fwname: "allow-http"
+    allowed: tcp:80,8080
+    state: "present"
+    target_tags: "http"
+    subnet_region: us-west1
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+    credentials_file: "{{ credentials_file }}"
+  tags:
+  - recipe6
+
+- name: Create Firewall Rule with Source Range
+  gce_net:
+    name: my-network
+    fwname: "allow-internal"
+    state: "present"
+    src_range: ['10.0.0.0/16']
+    subnet_name: public-subnet
+    allowed: 'tcp'
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+    credentials_file: "{{ credentials_file }}"    
+  tags:
+  - recipe6 
+
+- name: create load balancer and attach to instance
+  gce_lb:
+    name: loadbalancer1
+    region: us-west1
+    members: ["{{ zone }}/app"]
+    httphealthcheck_name: hc
+    httphealthcheck_port: 80
+    httphealthcheck_path: "/"
+    service_account_email: "{{ service_account_email }}"
+    project_id: "{{ project_id }}"
+    credentials_file: "{{ credentials_file }}"
+  tags:
+  - recipe7
+
+- name: stop the instance
+  gce:
+    instance_names: app
+    zone: "{{ zone }}"
+    machine_type: f1-micro
+    image: centos-7
+    state: stopped
+    service_account_email: "{{ service_account_email }}"
+    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"
+    disk_size: 15
+    metadata: "{{ instance_metadata }}"
+  tags:
+  - recipe8
+
+- name: create image
+  gce_img:
+    name: app-image
+    source: app
+    zone: "{{ zone }}"
+    state: present
+    service_account_email: "{{ service_account_email }}"
+    pem_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"
+  tags:
+  - recipe8
+
+- name: start the instance
+  gce:
+    instance_names: app
+    zone: "{{ zone }}"
+    machine_type: f1-micro
+    image: centos-7
+    state: started
+    service_account_email: "{{ service_account_email }}"
+    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"
+    disk_size: 15
+    metadata: "{{ instance_metadata }}"
+  tags:
+  - recipe8
+
+- name: create instance template named app-template
+  gce_instance_template:
+    name: app-template
+    size: f1-micro
+    tags: http,http-server
+    image: app-image
+    state: present
+    subnetwork: public-subnet
+    network: my-network
+    subnetwork_region: us-west1
+    service_account_email: "{{ service_account_email }}"
+    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"
+  tags:
+  - recipe9
+
+- name: create an instance group with autoscaling
+  gce_mig:
+    name: app-mig
+    zone: "{{ zone }}"
+    service_account_email: "{{ service_account_email }}"
+    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ project_id }}"
+    state: present
+    size: 2
+    named_ports:
+    - name: http
+      port: 80
+    template: app-template
+    autoscaling:
+      enabled: yes
+      name: app-autoscaler
+      policy:
+        min_instances: 2
+        max_instances: 5
+        cool_down_period: 90
+        cpu_utilization:
+          target: 0.6
+        load_balancing_utilization:
+          target: 0.8
+  tags:
+  - recipe10
+
+- name: create a bucket
+  gc_storage:
+    bucket: packt-mybucket
+    mode: create
+    gs_access_key: "{{ gs_access_key }}"
+    gs_secret_key: "{{ gs_secret_key }}"
+  tags:
+  - recipe11
+
+- name: upload an object
+  gc_storage:
+    bucket: packt-mybucket
+    object: key.txt
+    src: /home/packt/ansible/putmyfile.txt
+    mode: put
+    permission: public-read
+    gs_access_key: "{{ gs_access_key }}"
+    gs_secret_key: "{{ gs_secret_key }}"
+  tags:
+  - recipe11
+
+- name: download an object
+  gc_storage:
+    bucket: packt-mybucket
+    object: key.txt
+    dest: /home/packt/ansible/getmyfile.txt
+    mode: get
+    gs_access_key: "{{ gs_access_key }}"
+    gs_secret_key: "{{ gs_secret_key }}"
+  tags:
+  - recipe11
+    
+- name: Configure Google Cloud SDK
+  import_tasks: configure_gcloud.yml
+  become: yes
+  tags:
+  - recipe12      
+  
+- name: enable Cloud SQL APIs
+  command: gcloud service-management enable sqladmin.googleapis.com
+  tags:
+  - recipe12
+
+- name: wait for a couple of minutes
+  pause:
+    minutes: 2
+  tags:
+  - recipe12
+
+- name: check if the instance is up
+  command: gcloud sql instances describe app-db
+  register: availability
+  ignore_errors: yes
+  tags:
+  - recipe12
+
+- name: boot SQL instance if it not present
+  command: gcloud sql instances create app-db --tier=db-f1-micro --region=us-west1 --authorized-networks={{ app_eip.address }}/32
+  when: availability.rc != 0
+  tags:
+  - recipe12
+    
+- name: set root password
+  command: gcloud sql users set-password root % --instance app-db --password {{ mysql_root_password }}
+  tags:
+  - recipe12

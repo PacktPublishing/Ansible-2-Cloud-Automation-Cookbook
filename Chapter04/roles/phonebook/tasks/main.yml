@@ -1,0 +1,72 @@
+---
+- name: include secrets
+  include_vars: secrets.yml
+
+- name: install epel repository
+  package:
+    name: epel-release
+    state: present
+
+- name: install dependencies 
+  package:
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - git
+  - python-pip
+  - gcc
+  - python-devel
+  - mysql-devel  
+
+- name: install python libraries
+  pip:
+    name: "{{ item }}"
+    state: present
+  with_items:
+  - flask
+  - flask-sqlalchemy
+  - flask-migrate
+  - uwsgi
+  - MySQL-python
+
+- name: get the application code
+  git:
+    repo: https://github.com/DevopsNexus/phone-book-mysql/
+    dest: /opt/phone-book
+    force: yes
+
+- name: upload systemd unit file
+  copy:
+    src: phone-book.service
+    dest: /etc/systemd/system/phone-book.service
+
+- name: upload app config file
+  template:
+    src: config.py
+    dest: /opt/phone-book/config.py
+
+- name: create phonebook database
+  mysql_db:
+    name: phonebook      
+    state: present
+    login_host: "{{ mysql_host }}"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+- name: create app user for phonebook database
+  mysql_user:
+    name: app
+    password: "{{ mysql_app_password }}"
+    priv: 'phonebook.*:ALL'
+    host: "%"  
+    state: present
+    login_host: "{{ mysql_host }}"
+    login_user: root
+    login_password: "{{ mysql_root_password }}"
+
+- name: start phonebook
+  systemd:
+    state: started
+    daemon_reload: yes
+    name: phone-book
+    enabled: yes

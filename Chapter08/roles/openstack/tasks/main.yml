@@ -1,0 +1,204 @@
+---
+- name: adding public key
+  os_keypair:
+    name: aditya
+    public_key: {{ aditya_pub_key }}
+  tags:
+    - recipe2
+
+- name: delete a public key
+  os_keypair:
+    name: aditya
+    state: absent
+  tags:
+    - recipe2
+
+- name: create a security group for web servers
+  os_security_group:
+    name: web-sg
+    state: present
+    description: security group for web servers
+  tags:
+    - recipe3
+
+- name: allow port 80 for http
+  os_security_group_rule:
+    security_group: web-sg
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: 0.0.0.0/0
+  tags:
+    - recipe3
+
+- name: allow port 22 for SSH
+  os_security_group_rule:
+    security_group: web-sg
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: 0.0.0.0/0
+  tags:
+    - recipe3
+
+- name: creating a private network
+  os_network:
+    state: present
+    name: private
+  tags:
+    - recipe4
+
+- name: creating a private subnet
+  os_subnet:
+    state: present
+    network_name: private
+    name: app
+    cidr: 192.168.0.0/24
+    dns_nameservers:
+       - 8.8.4.4
+       - 8.8.8.8
+    host_routes:
+       - destination: 0.0.0.0/0
+         nexthop: 104.131.86.234
+       - destination: 192.168.0.0/24
+         nexthop: 192.168.0.1
+  tags:
+    - recipe4
+
+- name: Deploy an instance
+  os_server:
+    state: present
+    name: webserver
+    image: cirros
+    key_name: aditya
+    security_groups: web-sg
+    wait: yes
+    flavor: m1.tiny
+    auto_floating_ip: yes
+    network: private
+    meta:
+      hostname: webserver.localdomain
+  tags:
+    - recipe5
+
+- name: stop the webserver
+  os_server_action:
+    action: stop
+    server: webserver
+  tags:
+    - recipe5
+
+- name: create 5G test volume
+  os_volume:
+    state: present
+    size: 5
+    display_name: data
+  tags:
+    - recipe6
+
+- name: attach volume to host
+  os_server_volume:
+    state: present
+    server: webserver
+    volume: data
+  tags:
+    - recipe6
+
+- name: create an object container
+  os_object:
+    state: present
+    container: backup
+  tags:
+    - recipe7
+
+- name: upload backup.tar to backup container
+  os_object:
+    filename: /opt/backup.tar
+    container: backup
+    name: backup.tar
+    state: present
+  tags:
+    - recipe7
+
+- name: creating a demo domain
+  os_keystone_domain:
+    name: demodomain
+    description: Demo Domain
+    state: present
+  register: demo_domain
+  tags:
+    - recipe8
+
+- name: creating a demo role
+  os_keystone_role:
+    state: present
+    name: demorole
+  tags:
+    - recipe8
+
+- name: creating a demo project
+  os_project:
+    state: present
+    name: demoproject
+    description: Demo Project
+    domain_id: ""{{ demo_domain.id }}""
+    enabled: True
+  tags:
+    - recipe8
+
+- name: creating a demo group
+  os_group:
+    state: present
+    name: demogroup
+    description: ""Demo Group""
+    domain_id: ""{{ demo_domain.id }}""
+  tags:
+    - recipe8
+
+- name: creating a demo user
+  os_user:
+    name: demouser
+    password: secret-pass
+    update_password: on_create
+    email: demo@example.com
+    domain: ""{{ demo_domain.id }}""
+    state: present
+  tags:
+    - recipe8
+
+- name: adding user to the group
+  os_user_group:
+    user: demouser
+    group: demogroup
+  tags:
+    - recipe8
+
+- name: adding role to the group
+  os_user_role:
+    group: demo2
+    role: demorole
+    domain: ""{{ demo_domain.id }}""
+  tags:
+    - recipe8
+
+- name: Create a custom flavor 
+  os_nova_flavor:
+    name: custom1
+    ram: 1024
+    vcpus: 1
+    disk: 10
+    ephemeral: 10
+    state: present
+  tags:
+    - recipe9
+
+- name: adding Fedora 27 as an image
+  os_image:
+    name: fedora-cloud-27
+    container_format: bare
+    disk_format: qcow2
+    id: ""{{ ansible_date_time.epoch | to_uuid }}""
+    filename: /opt/Fedora-Cloud-Base-27-1.6.x86_64.qcow2
+    state: present
+  tags:
+    - recipe10

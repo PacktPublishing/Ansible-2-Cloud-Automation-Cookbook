@@ -1,0 +1,84 @@
+- name: Create and start a container using Ubuntu Image
+  docker_container:
+    name: myfirstcontainer
+    state: started
+    image: ubuntu:14.04
+    command: sleep infinity
+  tag:
+    - recipe2
+
+- name: Download docker image
+  docker_image:
+    name: centos/python-35-centos7
+  tag:
+    - recipe3
+
+- name: Build docker image
+  docker_image:
+    name: ansible-built
+    tag:  firstbuilt
+    path: "{{role_path}}/files/docker_files/"
+    state: present
+  tag:
+    - recipe3
+
+- name: Create volume for docker instance
+  docker_volume:
+    name: first_volume
+  tag:
+    - recipe4
+
+- name: Mount volume to container
+  docker_container:
+    name: myfirstcontainer
+    state: started
+    image: ubuntu:14.04
+    volumes:
+       - first_volume:/app
+    command: sleep infinity
+  tag:
+    - recipe4
+
+- name: Setting up a docker registry
+  docker_container:
+    name: registry
+    image: registry:2
+    exposed_ports:
+      - 5000
+    ports:
+      - 5000:5000
+  tag:
+    - recipe5
+
+- name: Log into DockerHub
+  docker_login:
+    username: vikas17a
+    password: vikas@sirsa
+    email: vikas17a@gmail.com
+  tag:
+    - recipe6
+
+- name: Push image to Dockerhub
+  docker_image:
+    repository: vikas17a/cookbook
+    name: cookbook
+    tag:  firstbuilt
+    path: "{{role_path}}/files/docker_files/"
+    push: yes
+  tag:
+    - recipe6
+
+- name: Create application using compose
+  docker_service:
+     project_src: "{{role_path}}/files/docker_compose"
+     state: present
+  tag:
+    - recipe7
+
+- name: Scale up web service of compose application
+  docker_service:
+     project_src: "{{role_path}}/files/docker_compose"
+     scale:
+        web: 2
+  tag:
+    - recipe8

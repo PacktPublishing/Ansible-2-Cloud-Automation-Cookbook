@@ -1,0 +1,33 @@
+version: '2'
+services:
+  web:
+    build: .
+    ports:
+     - "5000"
+    networks:
+     - l1-tier
+     - l2-tier
+  redis:
+    image: "redis:alpine"
+    links:
+       - web
+    networks:
+     - l2-tier
+  lb:
+    image: dockercloud/haproxy
+    ports:
+      - "5001:80"
+    links:
+     - web
+    networks:
+     - l1-tier
+     - l2-tier
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  l1-tier:
+    driver: bridge
+  l2-tier:
+    driver: bridge
+

@@ -1,0 +1,83 @@
+---
+- name: include secrets
+  include_vars: secrets.yml
+
+- name: Add SSH key to DO account
+  digital_ocean_sshkey:
+    name: "cookbook-key"
+    ssh_pub_key: "{{ ssh_public_key }}"
+    oauth_token: "{{ DO_OAUTH_TOKEN }}"
+  register: result
+  tags:
+  - recipe2
+
+- name: check for the droplet
+  shell: doctl compute droplet list --output json -t "{{ DO_OAUTH_TOKEN }}"
+  register: droplets
+  tags:
+  - recipe3
+
+- name: find the id of droplet
+  debug:
+    msg: "{{ droplets.stdout|from_json|json_query(\"[].{id: id, name: name} | [?name=='app'].id \")}}"
+  register: app
+  tags:
+  - recipe3
+
+- name: Creating app Droplet
+  digital_ocean:
+    id: "{{ app.msg[0] | default('0') }}"
+    state: present
+    command: droplet
+    name: app
+    api_token: "{{ DO_OAUTH_TOKEN }}"
+    size_id: 512mb
+    region_id: blr1
+    image_id: centos-7-x64
+    wait_timeout: 500
+    ssh_key_ids: "{{ result.data.ssh_key.fingerprint }}"
+  register: app_droplet
+  tags:
+  - recipe3
+
+- digital_ocean_block_storage:
+    state: present
+    command: create
+    api_token: "{{ DO_OAUTH_TOKEN }}"
+    region: blr1
+    block_size: 10
+    volume_name: cookbook1
+  tags:
+  - recipe4
+
+- digital_ocean_block_storage:
+    state: present
+    command: attach
+    api_token: "{{ DO_OAUTH_TOKEN }}"
+    volume_name: cookbook1
+    region: blr1
+    droplet_id: "{{ app_droplet.droplet.id }}"
+  tags:
+  - recipe4
+
+- name: attach a floating IP
+  digital_ocean_floating_ip:
+    state: present
+    droplet_id: "{{ app_droplet.droplet.id }}"
+    api_token: "{{ DO_OAUTH_TOKEN }}"
+  tags:
+  - recipe5
+
+- name: create a load balancer
+  shell: doctl compute load-balancer create --name lb1 --droplet-ids {{ app_droplet.droplet.id }} --forwarding-rules {{ forwarding_rules }} --health-check {{ health_check }} --region blr1 -t {{ DO_OAUTH_TOKEN }}
+  tags:
+  - recipe6
+
+- name: associate domain and IP
+  digital_ocean_domain:
+    state: present
+    name: ansiblecloudbook.com
+    ip: "{{ app_droplet.droplet.ip_address }}"
+    api_token: "{{ DO_OAUTH_TOKEN }}"
+  tags:
+  - recipe7

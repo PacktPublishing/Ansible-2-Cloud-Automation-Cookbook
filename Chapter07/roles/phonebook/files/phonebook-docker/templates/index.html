@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h3 class="text-muted"><a href="{{ url_for('get_contacts') }}">Phone Book</a></h3>
+      </div>
+      <hr/>
+      {%- for category, message in get_flashed_messages(with_categories=true) %}
+      <div class="alert alert-success">
+        {{ message }}
+      </div>
+      {%- endfor %}
+
+      <h3>Contacts (<a href="{{ url_for('create_contact') }}">Add contact</a>)</h3>
+      <table class="table">
+  <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+          </tr>
+	</thead>
+	<tbody>
+          {% for contact in contacts %}
+          <tr>
+            <td>{{ contact.name }}</td>
+            <td>{{ contact.email }}</td>
+            <td>{{ contact.phone }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

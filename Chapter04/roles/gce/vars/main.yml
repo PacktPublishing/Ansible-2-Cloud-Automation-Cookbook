@@ -1,0 +1,6 @@
+---
+service_account_email: "ansible@logical-bolt-181411.iam.gserviceaccount.com"
+credentials_file: "/home/packt/gce-default.json"
+zone: "us-west1-a"
+project_id: "logical-bolt-181411"
+instance_metadata: '{"sshKeys":"aditya:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCbg83WYIxUfXWJ4bQiYfZYHceDwMJxnGfJqgYtHL/DAtegVY+Nm8MX3CRZYisfskt0m9CQ6y/Ux1OITTz+O11fgxLJcroZmKJbWW0K39gfHvFqR7FIe0zuJaxqUQUuyc0i6RCBRiZPiQQOPes2yDtfHgDWx3q9knS3ZXIAXcGLZrgfC1XnIK8CLAnZDved9Rue2bhsCnO9Mleh9g/CTtehMDAzD4NeSv9eETlHYkYSpJg8gFA3BFICpBxTqWSjf1mMQGSmiudFOhRjHIxL1Tvh+pnjSoL/jrLcP3RtMVuG0ZU0qkoAts1qpTwmyAJUz9Ts2EeyDJ0tXsFAiOFbmuMd"}'

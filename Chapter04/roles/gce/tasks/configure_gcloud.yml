@@ -1,0 +1,26 @@
+---
+- name: enable Google SDK repo for RedHat/Centos
+  copy:
+    src: google-cloud-sdk.repo
+    dest: /etc/yum.repos.d/google-cloud-sdk.repo
+  when: ansible_os_family == "RedHat"
+
+- name: enable Google SDK repo for Debian/Ubuntu
+  template:
+    src: google-cloud-sdk.list
+    dest: /etc/apt/sources.list.d/google-cloud-sdk.list
+  when: ansible_os_family == "Debian"  
+
+- name: install Google Cloud's public key for Debain/Ubuntu
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: install gcloud SDK
+  package:
+    name: google-cloud-sdk
+    state: present
+
+- name: configure gcloud with service account
+  command: gcloud auth activate-service-account --key-file=/home/packt/gce-default.json

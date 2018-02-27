@@ -1,0 +1,7 @@
+---
+- hosts: localhost
+  roles:
+    - ec2
+- hosts: phonebook-infra
+  roles:
+    - phonebook

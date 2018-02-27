@@ -1,0 +1,12 @@
+[Unit]
+Description=Simple Phone Book
+
+[Service]
+WorkingDirectory=/opt/phone-book
+ExecStartPre=/bin/bash /opt/phone-book/init.sh
+ExecStart=/usr/bin/uwsgi --http-socket 0.0.0.0:8080 --manage-script-name --mount /phonebook=app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

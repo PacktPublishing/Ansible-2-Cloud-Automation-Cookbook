@@ -1,0 +1,4 @@
+---
+- hosts: first_vm
+  roles:
+    - phonebook

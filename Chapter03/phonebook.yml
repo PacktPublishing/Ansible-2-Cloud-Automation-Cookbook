@@ -1,0 +1,7 @@
+---
+- hosts: tag_Name_phonebook01
+  vars_files:
+    - roles/aws/vars/secrets.yml
+  roles:
+    - phonebook
+

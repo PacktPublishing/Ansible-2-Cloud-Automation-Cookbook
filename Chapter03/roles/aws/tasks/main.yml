@@ -1,0 +1,183 @@
+---
+- name: include secrets
+  include_vars: secrets.yml
+
+- name: Create EC2 Security Group for RDS
+  ec2_group:
+    name: my_rds_sg
+    description: Scurity group for RDS instance
+    region: "{{ aws_region }}"
+    aws_secret_key: "{{ secret_key }}"
+    aws_access_key: "{{ access_key }}"
+    rules:
+      - proto: tcp
+        from_port: 3306
+        to_port: 3306
+        group_name: my_rds_sg
+    rules_egress:
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: rds_sg
+  tags:
+    - recipe1
+
+- name: Create RDS Instance
+  rds:
+      aws_access_key: "{{ access_key }}"
+      aws_secret_key: "{{ secret_key }}"
+      region: "{{ aws_region }}"
+      command: create
+      instance_name: my-first-rds-instance
+      db_engine: MySQL
+      size: 10
+      instance_type: db.m1.small
+      username: cookbook_admin
+      password: "{{ rds_admin_pass }}"
+      vpc_security_groups: "{{ rds_sg.group_id }}"
+      multi_zone: yes
+      wait: true
+      wait_timeout: 700
+      backup_retention: 7
+      tags:
+          Enviornment: cookbook-prod
+          Application: cookbook-test
+  register: rds_result
+  tags:
+    - recipe1
+
+- name: Create Route53 record
+  route53:
+      aws_access_key: "{{ access_key }}"
+      aws_secret_key: "{{ secret_key }}"
+      state: present
+      zone: example.com
+      record: app.example.com
+      type: A
+      ttl: 7200
+      value:
+          - 1.1.1.1
+          - 2.2.2.2
+          - 3.3.3.3
+  tags:
+    - recipe2
+
+- name: Get existing Route53 record
+  route53:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    state: get
+    zone: example.com
+    record: dns.example.com
+    type: A
+    register: record
+  tags:
+    - recipe2
+
+- name: Delete existing Route53 record
+  route53:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    state: absent
+    zone: example.com
+    record: "{{ record.set.record }}"
+    ttl: "{{ record.set.ttl }}"
+    type: "{{ record.set.type }}"
+    value: "{{ record.set.value }}"
+  tags:
+    - recipe2
+
+#Creating an empty s3 bucket
+- name: Creating S3 bucket
+  aws_s3:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    bucket: my_ansible_cookbook_bucket
+    mode: create
+    permission: public-read
+  tags:
+    - recipe3
+
+#Putting object
+- name: Put object in S3 bucket
+  aws_s3:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    bucket: my_ansible_cookbook_bucket
+    object: "file.txt"
+    src: "{{role_path}}/files/text.txt"
+    mode: put
+  tags:
+    - recipe3
+
+- name: Create IAM role for lamda
+  iam_role:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    name: lambda
+    assume_role_policy_document: "{{ lookup('file','policy_lambda.json') }}"
+    state: present
+  tags:
+    - recipe4
+
+- name: Creating first lambda function
+  lambda:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    name: MyFirstLambda
+    state: present
+    zip_file: "{{role_path}}/files/myfirstzip.zip"
+    runtime: 'python2.7'
+    role: 'arn:aws:iam::779710563302:role/lambda'
+    handler: 'hello_world.my_handler'
+  tags:
+    - recipe4
+
+- name: Execute lamda function
+  execute_lambda:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    name: MyFirstLambda
+    payload:
+        foo: test
+        value: hello
+  register: response
+  tags:
+    - recipe4
+
+- name: debug
+  debug: msg=response
+  tags:
+    - recipe4
+
+- name: Create IAM users
+  iam:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    iam_type: user
+    name: "{{ item }}"
+    state: present
+    password: "{{ iam_pass }}"
+  with_items:
+    - cookbook-admin
+    - cookbook-two
+  tags:
+    - recipe5
+
+- name: Assign IAM policy to user
+  iam_policy:
+    aws_access_key: "{{ access_key }}"
+    aws_secret_key: "{{ secret_key }}"
+    region: "{{aws_region}}"
+    iam_type: user
+    iam_name: cookbook-admin
+    policy_name: Admin
+    state: present
+    policy_document: "{{role_path}}/files/iam_admin.json"
+  tags:
+    - recipe5
