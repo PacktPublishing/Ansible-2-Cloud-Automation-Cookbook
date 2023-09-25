@@ -1,6 +1,3 @@
-
-
-
 # Ansible 2 Automation Cookbook
 This is the code repository for [Ansible 2 Automation Cookbook](https://www.packtpub.com/virtualization-and-cloud/ansible-2-cloud-automation-cookbook?utm_source=github&utm_medium=repository&utm_campaign=9781788295826), published by [Packt](https://www.packtpub.com/?utm_source=github). It contains all the supporting project files necessary to work through the book from start to finish.
 ## About the Book
@@ -31,6 +28,9 @@ The code will look like the following:
 This book assumes that readers are already familiar with the basics of Ansible and the cloud provider they are going to work on. The book helps the readers to write infrastructure as code and automation. Readers will need a way to authenticate and authorize themselves to the desired cloud providers. Usually, that requires creating an account with said cloud provider. Although care has been taken to use trial and free-tier cloud providers wherever possible, certain recipes might cost users a small amount of money. Please be aware of the financial implications of that.
 
 From a hardware point of view, any modern computer running 64-bit Linux flavor will be able to run the recipes. We have run these recipes from a single core 1 GB RAM compute instance.
+
+## Errata
+* Page 141: In the section labeled **Managing security groups**,  - name: allow port 80 for SSH _should be_ - name: allow port 22 for SSH 
 
 ## Related Products
 * [Microsoft System Center Data Protection Manager Cookbook](https://www.packtpub.com/virtualization-and-cloud/microsoft-system-center-data-protection-manager-cookbook-0?utm_source=github&utm_medium=repository&utm_campaign=9781787289284)
